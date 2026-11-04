@@ -13,9 +13,10 @@ import sys
 import unicodedata
 from pathlib import Path
 
-from gei import anexo1, anexo2, matriz, motor
+from gei import anexo1, anexo2, anexo2_word, matriz, motor, resumen
 
 TEMPLATE = Path(__file__).parent / "plantilla_oficial" / "Template-Planilla-de-Emisiones-de-GEI-Definitivo-V2.xlsx"
+PLANTILLA_ANEXO2 = Path(__file__).parent / "plantilla_oficial" / "ANEXO-II-Metodologia-.docx"
 
 
 def slug(t):
@@ -35,7 +36,13 @@ def procesar(ruta_matriz, salida):
         nombre = salida / f"AnexoI_{anio}_{slug(industria)}_{slug(depto)}.xlsx"
         n = anexo1.exportar(TEMPLATE, nombre, datos["empresa"], anio, industria, depto, datos["instalaciones"], g)
         archivos.append((nombre.name, n))
+    for (industria, depto), g in em.groupby(["Industria", "Departamento"]):
+        nombre = salida / f"AnexoII_{slug(industria)}_{slug(depto)}.docx"
+        anexo2_word.exportar(PLANTILLA_ANEXO2, nombre, datos["empresa"], datos["instalaciones"], g)
+        archivos.append((nombre.name, None))
     anexo2.exportar(em, salida / "Anexo_II_Tablas.xlsx", datos["empresa"])
+    resumen.exportar(em, datos, salida / "Resumen_Ejecutivo_GEI.docx",
+                     [n for n, _ in archivos] + ["Anexo_II_Tablas.xlsx (tablas en Excel, apoyo)"])
     em.to_csv(salida / "Emisiones_detalle.csv", index=False, encoding="utf-8-sig")
     return em, archivos
 
@@ -44,4 +51,4 @@ if __name__ == "__main__":
     em, archivos = procesar(sys.argv[1], sys.argv[2] if len(sys.argv) > 2 else "salidas")
     print(motor.resumen(em).round(1).to_string(index=False))
     for n, f in archivos:
-        print(f"  {n}: {f} filas")
+        print(f"  {n}" + (f": {f} filas" if f else ""))
