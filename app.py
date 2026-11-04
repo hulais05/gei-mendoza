@@ -28,6 +28,8 @@ REGISTRO_2023 = {"Hidrocarburos": ("Energía", 4_056_976.90),
 st.set_page_config(page_title="GEI Mendoza · Minería e Hidrocarburos", page_icon="🌎", layout="wide")
 
 OSCURO = (st.context.theme.type or "dark") != "light"
+_UA = st.context.headers.get("User-Agent", "") if st.context.headers else ""
+MOVIL = any(k in _UA for k in ("Mobile", "Android", "iPhone"))
 C = {  # paleta de referencia validada (dataviz), pasos claro / oscuro
     "a1": "#3987e5" if OSCURO else "#2a78d6",
     "a2": "#d95926" if OSCURO else "#eb6834",
@@ -65,7 +67,7 @@ st.markdown(f"""
 .tarjetas .kpi {{ flex:1 1 0; min-width:0; height:auto; background:{C['card']};
   border:1px solid {C['borde']}; border-radius:10px; padding:clamp(10px,1vw,14px) clamp(10px,1.1vw,16px); }}
 .kpi .t {{ font-size:clamp(11.5px,.85vw,13px); color:{C['txt2']}; margin-bottom:6px; }}
-.kpi .v {{ font-size:clamp(18px,1.75vw,28px); font-weight:700; color:{C['txt']}; line-height:1.1; white-space:nowrap; }}
+.kpi .v {{ font-size:clamp(20px,1.75vw,28px); font-weight:700; color:{C['txt']}; line-height:1.1; white-space:nowrap; }}
 .kpi .p {{ font-size:clamp(11px,.8vw,12.5px); color:{C['txt2']}; margin-top:6px; }}
 @media (max-width: 760px) {{ .tarjetas {{ flex-wrap:wrap; }} .tarjetas .kpi {{ min-width:150px; }} }}
 .kpi.alerta {{ border-left:4px solid {C['alerta']}; }}
@@ -113,13 +115,19 @@ except SystemExit as e:
     st.stop()
 
 empresa = datos["empresa"].get("Razón social", "—")
-anios = sorted(em["Año"].unique())
+anios = [int(a) for a in sorted(em["Año"].unique())]
+
+sectores = sorted(em["Sector"].unique())
+
+# ─── Encabezado y filtros (en la página, no en la barra lateral: en el celular se ven) ──
+st.title("Registro GEI Mendoza")
+f1, f2 = st.columns([1, 2])
+with f1:
+    anio = st.segmented_control("Año", anios, default=anios[-1], key="anio") or anios[-1]
+with f2:
+    sector = st.segmented_control("Negocio", ["Todos"] + sectores, default="Todos", key="sector") or "Todos"
 
 with st.sidebar:
-    st.divider()
-    anio = st.selectbox("Año", anios, index=len(anios) - 1)
-    sectores = sorted(em["Sector"].unique())
-    sector = st.radio("Negocio", ["Todos"] + sectores, horizontal=False)
     st.divider()
     st.download_button("⬇ Todo para presentar (zip)", zip_salidas, "GEI_Mendoza_presentacion.zip",
                        type="primary", width="stretch")
@@ -134,8 +142,6 @@ if sector != "Todos":
 d = base[base["Año"] == anio]
 prev = base[base["Año"] == anio - 1]
 
-# ─── Encabezado ─────────────────────────────────────────────────────────────
-st.title("Registro GEI Mendoza")
 st.markdown(f"**{empresa}** · {sector if sector != 'Todos' else 'Minería e Hidrocarburos'} · año **{anio}**"
             f"{'  ·  🧪 caso de ejemplo ficticio' if not subida else ''}")
 
@@ -164,16 +170,22 @@ with izq:
     st.subheader("¿De dónde vienen las emisiones?")
     g = d.groupby(["Actividad", "Alcance"])["tCO2e"].sum().reset_index()
     g["Etiqueta"] = g["Actividad"].str.replace(r"\s*\(.*\)", "", regex=True).str.slice(0, 48)
+    if MOVIL:   # en el celular: nombres cortos y solo el %, para que la barra tenga lugar
+        g["Etiqueta"] = g["Etiqueta"].map(lambda t: t if len(t) <= 24 else t[:23].rstrip() + "…")
     g = g.groupby(["Etiqueta", "Alcance"])["tCO2e"].sum().reset_index().sort_values("tCO2e")
     g = g[g["tCO2e"] > 0.05]
     fig = go.Figure(go.Bar(
         x=g["tCO2e"], y=g["Etiqueta"], orientation="h",
         marker=dict(color=[C["a1"] if a == 1 else C["a2"] for a in g["Alcance"]], cornerradius=4),
-        text=[f"{fmt(v)} t · {fmt(v / total * 100, 1)} %" for v in g["tCO2e"]], textposition="outside",
-        textfont=dict(color=C["txt2"], size=12), cliponaxis=False,
+        text=[(f"{fmt(v / total * 100, 1)} %" if MOVIL else f"{fmt(v)} t · {fmt(v / total * 100, 1)} %")
+              for v in g["tCO2e"]], textposition="outside",
+        textfont=dict(color=C["txt2"], size=11 if MOVIL else 12), cliponaxis=False,
         hovertemplate="<b>%{y}</b><br>%{x:,.1f} tCO2e<extra></extra>"))
     layout(fig, alto=max(300, 34 * len(g) + 40), leyenda=False)
-    fig.update_xaxes(range=[0, g["tCO2e"].max() * 1.35] if len(g) else None)
+    fig.update_xaxes(range=[0, g["tCO2e"].max() * (1.22 if MOVIL else 1.35)] if len(g) else None,
+                     showticklabels=not MOVIL)
+    if MOVIL:
+        fig.update_yaxes(tickfont=dict(size=11))
     st.plotly_chart(fig, width="stretch", config={"displayModeBar": False})
     st.caption(f"<span style='color:{C['a1']}'>■</span> Alcance 1 (directas)   "
                f"<span style='color:{C['a2']}'>■</span> Alcance 2 (electricidad comprada)", unsafe_allow_html=True)
