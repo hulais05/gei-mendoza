@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+salidas/
+.DS_Store
+~$*
+# matrices con datos de clientes: nunca al repo
+clientes/
