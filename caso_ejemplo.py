@@ -94,8 +94,31 @@ PRODUCCION = pd.DataFrame([
     [2025, "Yacimiento Cerro Ejemplo", "Petróleo", 352_000, "m3"],
 ], columns=["Año", "Instalación", "Producto", "Cantidad", "Unidad"])
 
+INFORME = {
+    "Descripción de la empresa": "Empresa mendocina con dos negocios: producción de cal viva a partir de caliza propia "
+                                 "(cantera y planta en Las Heras) y producción de petróleo convencional (Malargüe).",
+    "Destinatario del informe": "Casa matriz (caso ficticio)",
+    "Año base": 2024,
+    "Justificación del año base": "Primer año con registros completos de consumo y primer período reportado ante el "
+                                  "Registro Provincial de Emisiones GEI de Mendoza.",
+    "Política de recálculo del año base": "Se recalcula el año base si adquisiciones, ventas, cierres, tercerizaciones o "
+                                          "cambios de metodología modifican sus emisiones en más de un 5 %.",
+    "Cambios estructurales en el período": "Ninguno.",
+    "Causas de los cambios entre años": "Minería: +5,8 % de producción de cal. Hidrocarburos: menos gas a antorcha y "
+                                        "venteo por la puesta en marcha de un compresor de recuperación de gas.",
+    "Instalaciones excluidas y justificación": "Ninguna.",
+    "Fuentes excluidas y justificación": "Ninguna.",
+    "Alcance 3": "No se reporta (opcional según GHG Protocol y Res. 1/2026).",
+    "Programas de reducción": "Recuperación de gas de antorcha (en ejecución desde 2025); programa LDAR semestral "
+                              "de detección de fugas (en ejecución).",
+    "Verificación externa": "No verificado.",
+    "Compensaciones": "No se informan.",
+    "Persona de contacto": "Responsable de Ambiente — ambiente@ejemplo.com.ar (caso ficticio)",
+}
+
 if __name__ == "__main__":
     generar("Matriz_GEI_Mendoza_EJEMPLO.xlsx", {"empresa": EMPRESA, "instalaciones": INSTALACIONES,
-                                                 "actividades": ACTIVIDADES, "produccion": PRODUCCION})
+                                                 "actividades": ACTIVIDADES, "produccion": PRODUCCION,
+                                                 "informe": INFORME})
     generar("Matriz_GEI_Mendoza.xlsx")
     print("Listo: Matriz_GEI_Mendoza_EJEMPLO.xlsx (caso ficticio) y Matriz_GEI_Mendoza.xlsx (vacía)")

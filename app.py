@@ -121,12 +121,12 @@ with st.sidebar:
     sectores = sorted(em["Sector"].unique())
     sector = st.radio("Negocio", ["Todos"] + sectores, horizontal=False)
     st.divider()
-    st.download_button("⬇ Anexo I + Anexo II + Resumen (zip)", zip_salidas, "GEI_Mendoza_presentacion.zip",
+    st.download_button("⬇ Todo para presentar (zip)", zip_salidas, "GEI_Mendoza_presentacion.zip",
                        type="primary", width="stretch")
     n1 = sum(1 for n, _ in archivos if n.startswith("AnexoI_"))
     n2 = sum(1 for n, _ in archivos if n.startswith("AnexoII_"))
     st.caption(f"Incluye {n1} Anexo I oficiales (Excel), {n2} Anexo II precompletados (Word, lo amarillo lo completa "
-               "la empresa) y el Resumen Ejecutivo.")
+               "la empresa), el Resumen Ejecutivo y el Informe GHG Protocol.")
 
 base = em[~em["Informativo"]]
 if sector != "Todos":
@@ -236,7 +236,32 @@ tarjetas(ctx)
 st.caption("Referencia orientativa: compara el año elegido con datos provinciales de 2023 (último publicado). "
            "Fuente: Gobierno de Mendoza, tablero del Inventario y Registro Provincial de GEI.")
 
-# ─── 4. Detalle ─────────────────────────────────────────────────────────────
+# ─── 4. Informe para terceros ───────────────────────────────────────────────
+st.divider()
+st.subheader("Informe para terceros · GHG Protocol")
+from gei import informe_ghg  # noqa: E402
+
+req = informe_ghg.suficiencia(datos, em)
+faltan_obl = [r for r in req if r[3] and not r[1]]
+faltan_opc = [r for r in req if not r[3] and not r[1]]
+ok_n = sum(1 for r in req if r[1])
+tarjetas([
+    ("Suficiencia de la información", "✓ Completo" if not faltan_obl else f"✗ Faltan {len(faltan_obl)}",
+     "Se puede emitir el informe según GHG Protocol" if not faltan_obl
+     else "Sale como BORRADOR hasta completar la hoja INFORME", "ok" if not faltan_obl else "alerta"),
+    ("Requisitos cumplidos", f"{ok_n} de {len(req)}", "Capítulo 9 del Estándar Corporativo", ""),
+    ("Opcionales pendientes", str(len(faltan_opc)), "Suman credibilidad, no bloquean", ""),
+])
+with st.expander("Ver requisito por requisito", expanded=bool(faltan_obl)):
+    st.dataframe(pd.DataFrame([{"": "✓" if c else "✗", "Requisito": t, "Tipo": "Obligatorio" if o else "Opcional",
+                                "Detalle": d} for t, c, d, o in req]),
+                 width="stretch", hide_index=True)
+nombre_inf = next((n for n in zipfile.ZipFile(io.BytesIO(zip_salidas)).namelist() if n.startswith("Informe_GEI")), None)
+if nombre_inf:
+    st.download_button(f"⬇ {'Informe' if not faltan_obl else 'Borrador de informe'} GHG Protocol (Word)",
+                       zipfile.ZipFile(io.BytesIO(zip_salidas)).read(nombre_inf), nombre_inf)
+
+# ─── 5. Detalle ─────────────────────────────────────────────────────────────
 st.divider()
 with st.expander("Detalle del cálculo (cada fila es lo que va a la Tabla 1 del Anexo II)"):
     t = d[["Instalación", "Proceso", "Categoría", "Gas", "Dato de actividad", "Factor", "Fuente del factor",

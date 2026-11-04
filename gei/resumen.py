@@ -4,6 +4,7 @@ Resumen ejecutivo (Word, 2 páginas): lo que lee un gerente o un directorio.
 Formato ESG: Calibri, formato directo, navy 1F3864 / azul 2F5496 / grises 404040-595959.
 """
 
+import re
 from datetime import date
 
 import docx
@@ -89,7 +90,9 @@ def _tabla(doc, cabecera, filas, cms, total=False):
                 _sombrear(c, "DEEAF6")
             p = c.paragraphs[0]
             _run(p, str(v), tam=9, color=GRIS, negrita=ultima)
-            p.alignment = WD_ALIGN_PARAGRAPH.RIGHT if k else WD_ALIGN_PARAGRAPH.LEFT
+            numerico = re.fullmatch(r"[-+▲▼]?\s?[\d.,]+\s?(%|t|kg.*)?", str(v).strip()) is not None
+            p.alignment = WD_ALIGN_PARAGRAPH.RIGHT if (k and numerico) else (
+                WD_ALIGN_PARAGRAPH.CENTER if str(v) in ("✓", "✗") else WD_ALIGN_PARAGRAPH.LEFT)
     _anchos(tb, cms)
     _p(doc, despues=2)
     return tb

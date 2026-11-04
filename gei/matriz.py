@@ -29,6 +29,25 @@ ACT_COLS = ["Año", "Instalación", "Proceso / equipo", "Código", "Cantidad", "
             "Fuente del dato", "Parámetro 1", "Parámetro 2", "Parámetro 3", "Notas"]
 PROD_COLS = ["Año", "Instalación", "Producto", "Cantidad", "Unidad"]
 
+# Hoja INFORME: lo que el GHG Protocol (Estándar Corporativo, cap. 9) exige y el cálculo no sabe.
+# (campo, ayuda). "Ninguna"/"No" son respuestas válidas: lo que no vale es dejarlo vacío.
+INFORME_CAMPOS = [
+    ("Descripción de la empresa", "Actividad principal, ubicación, tamaño. 2-3 líneas."),
+    ("Destinatario del informe", "Opcional: cliente, banco, casa matriz… (se menciona en la portada)."),
+    ("Año base", "Año contra el que se compara. Por defecto, el primero cargado."),
+    ("Justificación del año base", "Por qué ese año (primer año con datos confiables, primer reporte, etc.)."),
+    ("Política de recálculo del año base", "Cuándo se recalcula. Ej.: si adquisiciones, cierres o cambios de método alteran el año base en más de 5 %."),
+    ("Cambios estructurales en el período", "Adquisiciones, ventas, cierres, tercerizaciones. «Ninguno» si no hubo."),
+    ("Causas de los cambios entre años", "Qué explica la suba o baja: producción, eficiencia, cambio de combustible…"),
+    ("Instalaciones excluidas y justificación", "«Ninguna» si están todas."),
+    ("Fuentes excluidas y justificación", "Ej.: grupo electrógeno de emergencia < 1 % del total. «Ninguna» si no hay."),
+    ("Alcance 3", "«No se reporta» o detalle de las categorías incluidas."),
+    ("Programas de reducción", "Medidas en marcha o planificadas. «Sin programas» si no hay."),
+    ("Verificación externa", "Entidad y norma, o «No verificado»."),
+    ("Compensaciones", "Proyectos, estándar y tCO2e, o «No se informan»."),
+    ("Persona de contacto", "Nombre, cargo y correo."),
+]
+
 
 def _hdr(ws, cols, anchos):
     for c, (txt, w) in enumerate(zip(cols, anchos), 1):
@@ -121,6 +140,19 @@ def generar(ruta, ejemplo=None):
     ws.cell(10, 1, "Dejar vacío para usar el último factor oficial publicado (SNIGEI-AR 2025, Tabla 5: 2022 = "
                    "0,283 kg CO2/kWh). Cargar acá el del año si CAMMESA o Ambiente de Nación lo publican.").font = Font(italic=True, size=9)
 
+    # INFORME (para el informe a terceros según GHG Protocol)
+    ws = wb.create_sheet("INFORME", 1)
+    _hdr(ws, ["Campo", "Respuesta de la empresa", "Qué poner"], [36, 70, 70])
+    inf = ej.get("informe", {})
+    _filas(ws, [[k, inf.get(k), ayuda] for k, ayuda in INFORME_CAMPOS], 3, hasta=2 + len(INFORME_CAMPOS))
+    for r in range(2, 2 + len(INFORME_CAMPOS)):
+        ws.cell(r, 1).fill = PatternFill("solid", fgColor=GRIS)
+        ws.cell(r, 3).fill = PatternFill("solid", fgColor=GRIS)
+        ws.cell(r, 3).font = Font(italic=True, size=9)
+        for c in (2, 3):
+            ws.cell(r, c).alignment = Alignment(wrap_text=True, vertical="top")
+        ws.row_dimensions[r].height = 42
+
     # CATALOGO
     ws = wb.create_sheet("CATALOGO")
     cols = ["Código", "Actividad", "Sector", "Unidad", "Alcance", "Clasificación en el template", "Factor",
@@ -155,5 +187,9 @@ def leer(ruta):
     for r in wb["PARAMETROS"].iter_rows(min_row=2, max_row=8, values_only=True):
         if r[0] and r[1] is not None:
             fe[int(r[0])] = {"CO2": float(r[1]), "CH4": float(r[2] or 0), "N2O": float(r[3] or 0)}
+    informe = {}
+    if "INFORME" in wb.sheetnames:
+        informe = {r[0]: r[1] for r in wb["INFORME"].iter_rows(min_row=2, values_only=True)
+                   if r[0] and r[1] not in (None, "")}
     return {"empresa": emp, "instalaciones": inst, "actividades": act, "produccion": prod,
-            "parametros": {"fe_red": fe}}
+            "parametros": {"fe_red": fe}, "informe": informe}

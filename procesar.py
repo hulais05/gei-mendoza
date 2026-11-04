@@ -13,7 +13,7 @@ import sys
 import unicodedata
 from pathlib import Path
 
-from gei import anexo1, anexo2, anexo2_word, matriz, motor, resumen
+from gei import anexo1, anexo2, anexo2_word, informe_ghg, matriz, motor, resumen
 
 TEMPLATE = Path(__file__).parent / "plantilla_oficial" / "Template-Planilla-de-Emisiones-de-GEI-Definitivo-V2.xlsx"
 PLANTILLA_ANEXO2 = Path(__file__).parent / "plantilla_oficial" / "ANEXO-II-Metodologia-.docx"
@@ -43,6 +43,9 @@ def procesar(ruta_matriz, salida):
     anexo2.exportar(em, salida / "Anexo_II_Tablas.xlsx", datos["empresa"])
     resumen.exportar(em, datos, salida / "Resumen_Ejecutivo_GEI.docx",
                      [n for n, _ in archivos] + ["Anexo_II_Tablas.xlsx (tablas en Excel, apoyo)"])
+    req = informe_ghg.suficiencia(datos, em)
+    nombre = "Informe_GEI_GHG_Protocol.docx" if informe_ghg.completo(req) else "Informe_GEI_GHG_Protocol_BORRADOR.docx"
+    informe_ghg.exportar(em, datos, req, salida / nombre)
     em.to_csv(salida / "Emisiones_detalle.csv", index=False, encoding="utf-8-sig")
     return em, archivos
 
